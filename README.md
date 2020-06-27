@@ -1,4 +1,7 @@
 # gulp-rollup-2
+[![npm][npm-image]][npm-url] [![Dependency Status][david-image]][david-url] [![Build Status][travis-image]][travis-url]
+A [Gulp](https://www.npmjs.com/package/gulp) plugin for [Rollup](https://www.npmjs.com/package/rollup) Javascript Module Bundler.
+You can use with before or after any gulp plugins. 
 
 ## Install
 
@@ -18,7 +21,8 @@ gulp.task('bundle', () =>
     .pipe(gru2.rollup({
            input: 'src/app.js',
         external: ['window'],
-         plugins: [plugin1(), plugin2()],       
+         plugins: [plugin1(), plugin2()],
+           cache: true,
           output: [
             {
                    file: "example.js",
@@ -35,7 +39,7 @@ gulp.task('bundle', () =>
     .pipe(gulp.dest('./dist'));
 );
 ```
-### like gulp-src...
+### like gulp.src...
 
 ``` js
 const gulp = require('gulp');
