@@ -2,8 +2,8 @@
 
 A [Gulp](https://www.npmjs.com/package/gulp) plugin for [Rollup](https://www.npmjs.com/package/rollup) Javascript Module Bundler.
 You can use before or after any gulp plugins with Rollup Api.
-If set true the sourcemap option will override the maps created by any plugin like gulp-sourcemaps
-run before the gulp-rollup-2 plugin. 
+If sourcemap option of Rollup config is true; any map created by a plugin like gulp-sourcemaps
+will be overriden.
 
 ## Install
 
