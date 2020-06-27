@@ -1,7 +1,9 @@
 # gulp-rollup-2
 
 A [Gulp](https://www.npmjs.com/package/gulp) plugin for [Rollup](https://www.npmjs.com/package/rollup) Javascript Module Bundler.
-You can use with before or after any gulp plugins. 
+You can use before or after any gulp plugins with Rollup Api.
+If set true the sourcemap option will override the maps created by any plugin like gulp-sourcemaps
+run before the gulp-rollup-2 plugin. 
 
 ## Install
 
@@ -10,7 +12,7 @@ npm install --save-dev gulp-rollup-2
 ```
 
 ## Usage
-### Inside of the gulp pipe
+### Inside of the gulp pipe: (between gulp.src & gulp.dest)
 
 ``` js
 const gulp = require('gulp');
@@ -39,7 +41,7 @@ gulp.task('bundle', () =>
     .pipe(gulp.dest('./dist'));
 );
 ```
-### like gulp.src...
+### At the beginning... File path in the input option replaces the role of gulp src.
 
 ``` js
 const gulp = require('gulp');
