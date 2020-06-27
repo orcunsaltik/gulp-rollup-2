@@ -7,13 +7,13 @@ npm install --save-dev gulp-rollup-2
 ```
 
 ## Usage
-### Inside the gulp pipe
+### Inside of the gulp pipe
 
 ``` js
-const gulp = require('gulp'),
+const gulp = require('gulp');
 const gru2 = require('gulp-rollup-2');
 
-gulp.task('bundle', () => {
+gulp.task('bundle', () => 
   gulp.src('./src/**/*.js')
     .pipe(gru2.rollup({
            input: 'src/app.js',
@@ -33,5 +33,17 @@ gulp.task('bundle', () => {
             },
         ]}))
     .pipe(gulp.dest('./dist'));
-});
+);
+```
+### like gulp-src...
+
+``` js
+const gulp = require('gulp');
+const gru2 = require('gulp-rollup-2');
+
+gulp.task('bundle', async () =>
+  (await gru2.src(...opts))
+        .pipe(sourcemaps.write('.'))
+        .pipe(gulp.dest('dist'));
+);
 ```
