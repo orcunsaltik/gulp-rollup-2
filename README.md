@@ -1,5 +1,5 @@
 # gulp-rollup-2
-[![npm][npm-image]][npm-url] [![Dependency Status][david-image]][david-url] [![Build Status][travis-image]][travis-url]
+
 A [Gulp](https://www.npmjs.com/package/gulp) plugin for [Rollup](https://www.npmjs.com/package/rollup) Javascript Module Bundler.
 You can use with before or after any gulp plugins. 
 
