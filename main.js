@@ -298,4 +298,4 @@ const rollOut = async function (opts) {
     return _obj;
 };
 
-module.exports = { in: rollIn, out: rollOut };
+module.exports = { rollup: rollIn, src: rollOut };
