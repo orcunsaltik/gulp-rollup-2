@@ -7,6 +7,7 @@ npm install --save-dev gulp-rollup-2
 ```
 
 ## Usage
+### Inside the gulp pipe
 
 ``` js
 const gulp = require('gulp'),
