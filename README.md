@@ -34,7 +34,7 @@ gulp.task('bundle', () =>
             },
             {
                    file: "example.esm.bundle.js",
-                 format: "esm",
+                 format: "es",
                 globals: {window: 'window'}
             },
         ]}))
