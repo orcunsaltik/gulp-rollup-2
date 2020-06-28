@@ -64,7 +64,7 @@ const isEqual = (a, b) => {
 const sanitize = function (opts, out) {
 
     if (!opts) {
-        throw new error(PLUGIN_NAME, 'Missing rollup config options!');
+        throw new Error(PLUGIN_NAME + ': Missing rollup config options!');
     }
 
     if (typeof opts === 'string') {
@@ -75,15 +75,15 @@ const sanitize = function (opts, out) {
 
     opts.filter(e => {
         if (out && !e.input) {
-            throw new error(PLUGIN_NAME, 'Input option required!');
+            throw new Error(PLUGIN_NAME + ': Input option required!');
         } else if (!e.output) {
-            throw new error(PLUGIN_NAME, 'Output option required!');
+            throw new Error(PLUGIN_NAME + ': Output option required!');
         } else if (isArray(e.output)) {
             if (e.output.filter((i) => !i.file || !i.format || !isInMod(i.format)).length) {
-                throw new error(PLUGIN_NAME, 'Missing options file, format or unknown format type!');
+                throw new Error(PLUGIN_NAME + ': Missing options file, format or unknown format type!');
             }
         } else if (!e.output.file || !e.output.format || !isInMod(e.output.format)) {
-            throw new error(PLUGIN_NAME, 'Missing options file, format or unknown format type!');
+            throw new Error(PLUGIN_NAME + ': Missing options file, format or unknown format type!');
         }
     });
 
@@ -107,7 +107,7 @@ const sanitize = function (opts, out) {
         const currI = opt.io;
         opts.forEach((e, j) => {
             if (i !== j && isEqual(currI, e.io)) {
-                throw new error(PLUGIN_NAME, 'Repetitive input options!');
+                throw new Error(PLUGIN_NAME + ': Repetitive input options!');
             }
         });
     });
@@ -121,7 +121,7 @@ const sanitize = function (opts, out) {
             oo.forEach((e, j) => {
                 if (i !== j) {
                     if (isEqual(curr, e) || curr.file === e.file) {
-                        throw new error(PLUGIN_NAME, 'Two or more output have same file option!');
+                        throw new Error(PLUGIN_NAME + ': Two or more output have same file option!');
                     } else {
                         of.push(curr.file);
                     }
@@ -131,7 +131,7 @@ const sanitize = function (opts, out) {
     });
 
     if (of.length !== unique(of).length) {
-        throw new error(PLUGIN_NAME, 'Two or more output have same file option!');
+        throw new Error(PLUGIN_NAME + ': Two or more output have same file option!');
     }
 
     return opts;
@@ -145,7 +145,7 @@ const rollIn = function (opts) {
         async function (file, encoding, callback) {
 
             if (file.isStream()) {
-                this.emit('error', error(PLUGIN_NAME, 'Unsupported file type: Stream!'));
+                this.emit('Error', Error(PLUGIN_NAME + ': Unsupported file type: Stream!'));
                 callback();
             }
 
