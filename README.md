@@ -27,14 +27,14 @@ gulp.task('bundle', () =>
            cache: true,
           output: [
             {
-                   file: "example.js",
-                   name: "example", 
-                 format: "umd",
+                   file: 'example.js',
+                   name: 'example', 
+                 format: 'umd',
                 globals: {window: 'window'}
             },
             {
-                   file: "example.esm.bundle.js",
-                 format: "es",
+                   file: 'example.esm.bundle.js',
+                 format: 'es',
                 globals: {window: 'window'}
             },
         ]}))
