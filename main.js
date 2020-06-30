@@ -1,5 +1,3 @@
-'use strict';
-
 const path    = require('path');
 const vinyl   = require('vinyl');
 const vinylSa = require('vinyl-sourcemaps-apply');
