@@ -8,6 +8,7 @@
 ![npm](https://img.shields.io/npm/dt/gulp-rollup-2)
 [![NPM Version](https://badge.fury.io/js/gulp-rollup-2.svg?style=flat)](https://npmjs.org/package/gulp-rollup-2)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/orcunsaltik/gulp-rollup-2/issues)
+[![Coverage Status](https://coveralls.io/repos/github/orcunsaltik/gulp-rollup-2/badge.svg?branch=master)](https://coveralls.io/github/orcunsaltik/gulp-rollup-2?branch=master)
 
 A [Gulp](https://www.npmjs.com/package/gulp) plugin for [Rollup](https://www.npmjs.com/package/rollup) Javascript Module Bundler.
 
