@@ -13,8 +13,8 @@
 A [Gulp](https://www.npmjs.com/package/gulp) plugin for [Rollup](https://www.npmjs.com/package/rollup) Javascript Module Bundler.
 
 You can use before or after any gulp plugins with Rollup Api.
-Any map created by a gulp plugin like gulp-sourcemaps etc.
-will be overriden if the sourcemap option of the rollup config is set to true; 
+Any map created by a gulp plugin like gulp-sourcemaps will be overriden if the
+sourcemap option of the rollup config is set to true; 
 
 ## Install
 
@@ -75,7 +75,6 @@ When you encounter a problem, please open an issue. I would be glad to help you 
 ## Author
 
 Github: [@orcunsaltik](https://github.com/orcunsaltik)
-
 
 ## License
 

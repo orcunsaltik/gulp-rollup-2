@@ -1,6 +1,6 @@
 {
     "name": "gulp-rollup-2",
-    "version": "1.1.4",
+    "version": "1.1.5",
     "description": "Gulp plugin for Rollup JavaScript Module Bundler",
     "main": "main.js",
     "scripts": {
@@ -36,6 +36,9 @@
         "vinyl-sourcemaps-apply": "^0.2.1",
         "object-hash": "^2.0.3",
         "njfs": "^1.2.3"
+    },
+    "engines": {
+        "node": ">= 10.0.0"
     },
     "author": "Orçun Saltık <saltikorcun@gmail.com>",
     "license": "MIT",
