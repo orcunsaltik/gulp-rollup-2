@@ -23,7 +23,7 @@ npm install --save-dev gulp-rollup-2
 
 ## Usage
 
-### Inside the gulp pipe(): (between src() & dest() methods of gulp)
+### A - Inside the gulp pipe(): (between src() & dest() methods of gulp)
 
 ``` js
 const gulp = require('gulp');
@@ -52,9 +52,9 @@ gulp.task('bundle', () =>
     .pipe(gulp.dest('./dist'));
 );
 ```
-### When it comes first...
+### B - When it comes first...
 
-The file path in the input option of the Rollup config used by the src method of gulp-rollup-2 plugin replaces the role of src() method of gulp.
+The file path in the input option of the Rollup Api config object used in the src() method of gulp-rollup-2 plugin replaces the role of src() method of gulp.
 
 ``` js
 const gulp = require('gulp');
