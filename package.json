@@ -1,46 +1,58 @@
 {
-  "name": "gulp-rollup-2",
-  "version": "1.1.0",
-  "description": "gulp plugin for Rollup JavaScript module bundler",
-  "main": "main.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/orcunsaltik/gulp-rollup-2.git"
-  },
-  "keywords": [
-    "gulp",
-    "rollup",
-    "es6",
-    "esm",
-    "cjs",
-    "iife",
-    "bundler",
-    "module",
-    "gulpplugin",
-    "umd",
-    "amd",
-    "gulp-plugin",
-    "modules",
-    "javascript",
-    "js",
-    "optimizer",
-    "system"
-  ],
-  "dependencies": {
-    "rollup": "^2.15.0",
-    "through2": "^3.0.1",
-    "vinyl": "^2.2.0",
-    "vinyl-sourcemaps-apply": "^0.2.1",
-    "object-hash": "^2.0.3",
-    "njfs": "^1.0.0"
-  },
-  "author": "Orçun Saltık <saltikorcun@gmail.com>",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/orcunsaltik/gulp-rollup-2/issues"
-  },
-  "homepage": "https://github.com/orcunsaltik/gulp-rollup-2#readme"
+    "name": "gulp-rollup-2",
+    "version": "1.1.1",
+    "description": "Gulp plugin for Rollup JavaScript Module Bundler",
+    "main": "main.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/orcunsaltik/gulp-rollup-2.git"
+    },
+    "keywords": [
+        "gulp",
+        "rollup",
+        "module",
+        "modules",
+        "bundler",
+        "umd",
+        "amd",
+        "esm",
+        "cjs",
+        "iife",
+        "plugin",
+        "gulpplugin",
+        "gulp-plugin",
+        "javascript",
+        "js",
+        "es6"
+    ],
+    "dependencies": {
+        "rollup": "^2.15.0",
+        "through2": "^3.0.1",
+        "vinyl": "^2.2.0",
+        "vinyl-sourcemaps-apply": "^0.2.1",
+        "object-hash": "^2.0.3",
+        "njfs": "^1.0.0"
+    },
+    "author": "Orçun Saltık <saltikorcun@gmail.com>",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/orcunsaltik/gulp-rollup-2/issues"
+    },
+    "homepage": "https://github.com/orcunsaltik/gulp-rollup-2#readme",
+    "devDependencies": {
+        "eslint": "^7.10.0"
+    },
+    "eslintConfig": {
+        "env": {
+            "browser": false,
+            "node": true,
+            "es6": true
+        },
+        "parserOptions": {
+            "ecmaVersion": 2018
+        }
+    }
 }

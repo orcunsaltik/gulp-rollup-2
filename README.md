@@ -1,9 +1,19 @@
-# gulp-rollup-2
+# Gulp Rollup 2
+
+[![Build Status](https://travis-ci.com/orcunsaltik/njfs.svg?branch=master)](https://travis-ci.com/orcunsaltik/njfs)
+[![Dependency Status](https://david-dm.org/orcunsaltik/njfs.svg)](https://david-dm.org/orcunsaltik/njfs)
+[![devDependencies Status](https://david-dm.org/orcunsaltik/njfs/dev-status.svg)](https://david-dm.org/orcunsaltik/njfs?type=dev)
+[![Maintainability](https://api.codeclimate.com/v1/badges/035ff3499e767eb6b552/maintainability)](https://codeclimate.com/github/orcunsaltik/njfs/maintainability)
+![Snyk Vulnerabilities for GitHub Repo](https://img.shields.io/snyk/vulnerabilities/github/orcunsaltik/njfs)
+![npm](https://img.shields.io/npm/dt/njfs)
+[![NPM Version](https://badge.fury.io/js/njfs.svg?style=flat)](https://npmjs.org/package/njfs)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/orcunsaltik/njfs/issues)
 
 A [Gulp](https://www.npmjs.com/package/gulp) plugin for [Rollup](https://www.npmjs.com/package/rollup) Javascript Module Bundler.
+
 You can use before or after any gulp plugins with Rollup Api.
-If sourcemap option of Rollup config is true; any map created by a plugin like gulp-sourcemaps
-will be overriden.
+Any map created by a gulp plugin like gulp-sourcemaps etc.
+will be overriden if the sourcemap option of the rollup config is set to true; 
 
 ## Install
 
@@ -53,3 +63,16 @@ gulp.task('bundle', async () =>
         .pipe(gulp.dest('dist'));
 );
 ```
+
+## Troubleshooting
+
+When you encounter a problem, please open an issue. I would be glad to help you to find a solution if possible.
+
+## Author
+
+Github: [@orcunsaltik](https://github.com/orcunsaltik)
+
+
+## License
+
+See the [LICENSE](LICENSE) file for license rights and limitations (MIT).
