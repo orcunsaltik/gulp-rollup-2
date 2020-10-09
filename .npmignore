@@ -1,2 +1,6 @@
+# Logs
+*.log
+*.log*
+
 /.editorconfig
 /.gitignore
