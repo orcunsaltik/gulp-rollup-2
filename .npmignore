@@ -4,6 +4,7 @@
 
 /.editorconfig
 /.gitignore
+/.coveralls.yml
 
 # nyc
 /.nyc_output
