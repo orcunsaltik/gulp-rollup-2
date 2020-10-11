@@ -250,8 +250,6 @@ const outside = async function (opts) {
         return {bundle, oo, input: io.input};
     }));
 
-    let start = 2;
-
     await Promise.all(bundles.map(async bundle => {
 
         const oo    = bundle.oo;
@@ -260,10 +258,7 @@ const outside = async function (opts) {
 
         await Promise.all(oo.map(async o => {
 
-            start --;
-
             const f = o.format;
-            const s = start > 0;
 
             if ((f === 'umd' || f === 'iife') && !o.name) {
                 o.name = input;
