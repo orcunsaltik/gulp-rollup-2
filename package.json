@@ -1,6 +1,6 @@
 {
     "name": "gulp-rollup-2",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "Gulp plugin for Rollup JavaScript Module Bundler",
     "main": "main.js",
     "scripts": {
@@ -31,14 +31,6 @@
         "js",
         "es6"
     ],
-    "dependencies": {
-        "rollup": "^2.29.0",
-        "through2": "^4.0.2",
-        "vinyl": "^2.2.1",
-        "vinyl-sourcemaps-apply": "^0.2.1",
-        "object-hash": "^2.0.3",
-        "njfs": "^1.2.3"
-    },
     "engines": {
         "node": ">= 10.22.1"
     },
@@ -48,6 +40,14 @@
         "url": "https://github.com/orcunsaltik/gulp-rollup-2/issues"
     },
     "homepage": "https://github.com/orcunsaltik/gulp-rollup-2#readme",
+    "dependencies": {
+        "rollup": "^2.29.0",
+        "through2": "^4.0.2",
+        "vinyl": "^2.2.1",
+        "vinyl-sourcemaps-apply": "^0.2.1",
+        "object-hash": "^2.0.3",
+        "njfs": "^1.2.3"
+    },
     "devDependencies": {
         "coveralls": "^3.1.0",
         "eslint": "^7.10.0",
