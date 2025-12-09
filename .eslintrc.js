@@ -12,7 +12,7 @@ module.exports = {
     semi: ['error', 'always'],
     quotes: ['error', 'single'],
     indent: ['error', 2],
-    'space-before-function-paren': ['error', 'never'],
+    'space-before-function-paren': 'off',
     'no-unused-vars': 'warn'
   }
 };

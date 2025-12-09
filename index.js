@@ -1,318 +1,229 @@
+/**
+ * gulp-rollup-2 — Modern, correct, and robust
+ * Supports:
+ * - Multiple inputs → multiple outputs
+ * - Full Vinyl + sourcemap support
+ * - Proper cache handling
+ * - Gulp stream compliance
+ * - Rollup 2+ / 3+ / 4+ compatible
+ */
+
 const path = require('path');
 const Vinyl = require('vinyl');
-const vinylSa = require('vinyl-sourcemaps-apply');
-const through = require('through2');
+const applySourceMap = require('vinyl-sourcemaps-apply');
+const through2 = require('through2');
 const rollup = require('rollup');
 const hash = require('object-hash');
-const root = require('njfs').root;
+const { root } = require('njfs');
 
 const PLUGIN_NAME = 'gulp-rollup-2';
+const CACHE = new Map(); // input hash → rollup cache
 
-const cache = {};
+// --- Helpers ---
+const isArray = Array.isArray;
+const uniq = arr => [...new Set(arr)];
 
-const modules = ['es', 'amd', 'cjs', 'iife', 'umd', 'system'];
+const deepEqual = (a, b) => {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
 
-const isInMod = format => modules.indexOf(format) > -1;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
 
-const isArray = arg => Object.prototype.toString.call(arg) === '[object Array]';
-
-const unique = obj => Array.prototype.filter.call(obj, (v, i) => obj.indexOf(v) === i);
-
-const isEqual = (a, b) => {
-  const oka = Object.keys(a);
-  const okb = Object.keys(b);
-  const ola = oka.length;
-  const olb = okb.length;
-
-  if (ola !== olb) {
-    return false;
+  for (const key of keysA) {
+    if (!Object.hasOwn(b, key)) return false;
+    if (!deepEqual(a[key], b[key])) return false;
   }
-
-  let i = 0;
-  for (; i < ola; i += 1) {
-    const ka = oka[i];
-
-    if (b[ka] === undefined) {
-      return false;
-    }
-
-    const va = a[ka];
-    const vb = b[ka];
-
-    if (va == null || typeof va === 'string' || typeof va === 'number') {
-      if (va !== vb) {
-        return false;
-      }
-    } else if (typeof va === 'function') {
-      if (va.name !== vb.name) {
-        return false;
-      }
-    } else if (va.constructor !== vb.constructor) {
-      return false;
-    } else {
-      return isEqual(va, vb);
-    }
-  }
-
   return true;
 };
 
-const sanitize = (opts, out) => {
-  if (!opts) {
-    throw new Error(`${PLUGIN_NAME}: Missing rollup config options!`);
-  }
+const validateFormat = fmt => ['es', 'amd', 'cjs', 'iife', 'umd', 'system'].includes(fmt);
 
-  if (typeof opts === 'string') {
-    opts = [
-      {
-        output: {
-          format: opts
-        }
-      }
-    ];
-  } else if (!isArray(opts)) {
-    opts = [opts];
+const sanitizeConfig = (configs, requireInput = false) => {
+  if (!configs) throw new Error(`${PLUGIN_NAME}: Missing Rollup config`);
+  if (typeof configs === 'string') {
+    configs = [{ output: { format: configs } }];
   }
+  if (!isArray(configs)) configs = [configs];
 
-  opts.filter(e => {
-    if (out && !e.input) {
-      throw new Error(`${PLUGIN_NAME}: Input option required!`);
-    } else if (!e.output) {
-      throw new Error(`${PLUGIN_NAME}: Output option required!`);
-    } else if (isArray(e.output)) {
-      if (e.output.filter(i => !i.file || !i.format || !isInMod(i.format)).length) {
-        throw new Error(`${PLUGIN_NAME}: Missing options file, format or unknown format type!`);
-      }
-    } else if (!e.output.file || !e.output.format || !isInMod(e.output.format)) {
-      throw new Error(`${PLUGIN_NAME}: Missing options file, format or unknown format type!`);
+  const result = [];
+
+  for (const cfg of configs) {
+    if (requireInput && !cfg.input) {
+      throw new Error(`${PLUGIN_NAME}: 'input' is required`);
     }
-    return true;
-  });
+    if (!cfg.output) {
+      throw new Error(`${PLUGIN_NAME}: 'output' is required`);
+    }
 
-  const options = [];
+    const inputOpts = { ...cfg };
+    const outputs = isArray(cfg.output) ? cfg.output : [cfg.output];
+    delete inputOpts.output;
 
-  opts.forEach((opt, i) => {
-    const io = Object.assign({}, opt);
-    const oo = io.output;
-
-    delete io.output;
-
-    options[i] = {};
-    options[i].io = io;
-    options[i].oo = isArray(oo) ? oo : [oo];
-  });
-
-  opts = options;
-
-  opts.forEach((opt, i) => {
-    const currI = opt.io;
-    opts.forEach((e, j) => {
-      if (i !== j && isEqual(currI, e.io)) {
-        throw new Error(`${PLUGIN_NAME}: Repetitive input options!`);
+    for (const out of outputs) {
+      if (!out.file || !out.format || !validateFormat(out.format)) {
+        throw new Error(`${PLUGIN_NAME}: Output must have 'file' and valid 'format'`);
       }
-    });
-  });
+    }
 
-  const of = [];
-
-  opts.forEach(opt => {
-    const oo = opt.oo;
-    oo.forEach((o, i) => {
-      const curr = o;
-      oo.forEach((e, j) => {
-        if (i !== j) {
-          if (isEqual(curr, e) || curr.file === e.file) {
-            throw new Error(`${PLUGIN_NAME}: Two or more output have same file option!`);
-          } else {
-            of.push(curr.file);
-          }
-        }
-      });
-    });
-  });
-
-  if (of.length !== unique(of).length) {
-    throw new Error(`${PLUGIN_NAME}: Two or more output have same file option!`);
+    result.push({ input: inputOpts, outputs });
   }
 
-  return opts;
+  // Dedupe inputs
+  for (let i = 0; i < result.length; i++) {
+    for (let j = i + 1; j < result.length; j++) {
+      if (deepEqual(result[i].input, result[j].input)) {
+        throw new Error(`${PLUGIN_NAME}: Duplicate input options`);
+      }
+    }
+  }
+
+  // Dedupe output files
+  const files = result.flatMap(r => r.outputs.map(o => o.file));
+  if (files.length !== uniq(files).length) {
+    throw new Error(`${PLUGIN_NAME}: Multiple outputs write to the same file`);
+  }
+
+  return result;
 };
 
-const inside = opts => {
-  opts = sanitize(opts);
+// --- Inside Stream (Transform) ---
+const inside = rollupConfigs => {
+  const configs = sanitizeConfig(rollupConfigs);
 
-  return through(
-    {
-      objectMode: true
-    },
-    async function(file, encoding, callback) {
-      if (file.isStream()) {
-        this.emit('Error', Error(`${PLUGIN_NAME}: Unsupported file type: Stream!`));
-        callback();
-      }
+  return through2.obj(async function (file, enc, cb) {
+    if (file.isStream()) {
+      return cb(new Error(`${PLUGIN_NAME}: Streaming not supported`));
+    }
 
-      const _map = !!file.sourceMap;
-      const _dir = file.cwd;
-      const _pat = file.path;
-      const _inp = path.relative(_dir, _pat);
+    const cwd = file.cwd;
+    const inputPath = path.relative(cwd, file.path);
 
+    try {
       const bundles = await Promise.all(
-        opts.map(async opt => {
-          const io = opt.io;
-          const oo = opt.oo;
-
-          const ch = hash(io);
-          cache[ch] = {};
-
-          io.input = io.input ? path.relative(_dir, io.input) : _inp;
-          io.cache = io.cache ? cache[ch] : false;
-
-          const bundle = await rollup.rollup(io);
-          cache[ch] = bundle.cache;
-
-          return {
-            bundle,
-            oo,
-            input: io.input
+        configs.map(async ({ input, outputs }) => {
+          const rollupInput = {
+            ...input,
+            input: input.input ? path.relative(cwd, input.input) : inputPath
           };
+
+          const cacheKey = hash(rollupInput);
+          rollupInput.cache = CACHE.get(cacheKey) || false;
+
+          const bundle = await rollup.rollup(rollupInput);
+          CACHE.set(cacheKey, bundle.cache);
+
+          return { bundle, outputs, inputPath: rollupInput.input };
         })
       );
 
-      let start = 2;
+      for (const { bundle, outputs, inputPath } of bundles) {
+        for (const outputOpts of outputs) {
+          // Auto-fill name for UMD/IIFE
+          if ((outputOpts.format === 'umd' || outputOpts.format === 'iife') && !outputOpts.name) {
+            outputOpts.name = path.basename(inputPath, path.extname(inputPath));
+          }
+          if ((outputOpts.format === 'umd' || outputOpts.format === 'amd') && !outputOpts.amd?.id) {
+            outputOpts.amd = { ...(outputOpts.amd || {}), id: outputOpts.name };
+          }
 
-      await Promise.all(
-        bundles.map(async bundle => {
-          const oo = bundle.oo;
-          const input = bundle.input;
-          bundle = bundle.bundle;
+          const result = await bundle.generate(outputOpts);
+          for (const output of result.output) {
+            const { code, map } = output;
 
-          await Promise.all(
-            oo.map(async o => {
-              start--;
+            const outFile = new Vinyl({
+              cwd,
+              base: path.dirname(path.join(cwd, inputPath)),
+              path: path.resolve(cwd, outputOpts.file),
+              contents: Buffer.from(code)
+            });
 
-              const f = o.format;
-              const s = start > 0;
+            if (map) {
+              applySourceMap(outFile, map);
+            } else if (file.sourceMap) {
+              // Fallback to input sourcemap
+              const sm = { ...file.sourceMap };
+              sm.file = path.basename(outputOpts.file);
+              sm.sources = sm.sources.map(s =>
+                path.relative(outFile.base, path.resolve(file.base, s))
+              );
+              applySourceMap(outFile, sm);
+            }
 
-              if ((f === 'umd' || f === 'iife') && !o.name) {
-                o.name = input;
-              }
+            this.push(outFile);
+          }
+        }
+        await bundle.close();
+      }
 
-              if ((f === 'umd' || f === 'amd') && (!o.amd || (!!o.amd && !o.amd.id))) {
-                o.amd = Object.assign({}, o.amd, {
-                  id: o.name
-                });
-              }
-
-              const build = await bundle.generate(o);
-              const [output] = build.output;
-              const { code } = output;
-              const buffer = Buffer.from(code, encoding);
-
-              const oBase = path.dirname(path.join(_dir, input));
-              const oName = path.basename(o.file);
-              const oPath = path.resolve(oBase, oName);
-              const oFile = s ? file : new Vinyl();
-              let map = output.map;
-
-              oFile.path = oPath;
-              oFile.contents = buffer;
-              oFile.base = oBase;
-
-              if (map !== null) {
-                vinylSa(oFile, map);
-              } else if (_map && s) {
-                map = file.sourceMap;
-                map.file = input;
-                map.sources = map.sources.map(src => path.relative(_dir, path.join(oBase, src)));
-                vinylSa(oFile, map);
-              }
-
-              return s ? oFile : this.push(oFile);
-            })
-          );
-        })
-      );
-
-      callback(null, file);
+      cb();
+    } catch (err) {
+      cb(err);
     }
-  );
+  });
 };
 
-const outside = async opts => {
-  opts = sanitize(opts, true);
+// --- Outside Stream (Readable) ---
+const outside = async rollupConfigs => {
+  const configs = sanitizeConfig(rollupConfigs, true);
+  const cwd = root();
+  const stream = through2.obj();
 
-  const _dir = root();
-  const _obj = through.obj();
+  (async () => {
+    try {
+      const bundles = await Promise.all(
+        configs.map(async ({ input, outputs }) => {
+          const rollupInput = {
+            ...input,
+            input: path.relative(cwd, input.input)
+          };
 
-  const bundles = await Promise.all(
-    opts.map(async opt => {
-      const io = opt.io;
-      const oo = opt.oo;
+          const cacheKey = hash(rollupInput);
+          rollupInput.cache = CACHE.get(cacheKey) || false;
 
-      const ch = hash(io);
-      cache[ch] = {};
+          const bundle = await rollup.rollup(rollupInput);
+          CACHE.set(cacheKey, bundle.cache);
 
-      io.input = path.relative(_dir, io.input);
-      io.cache = io.cache ? cache[ch] : false;
-
-      const bundle = await rollup.rollup(io);
-      cache[ch] = bundle.cache;
-
-      return {
-        bundle,
-        oo,
-        input: io.input
-      };
-    })
-  );
-
-  await Promise.all(
-    bundles.map(async bundle => {
-      const oo = bundle.oo;
-      const input = bundle.input;
-      bundle = bundle.bundle;
-
-      await Promise.all(
-        oo.map(async o => {
-          const f = o.format;
-
-          if ((f === 'umd' || f === 'iife') && !o.name) {
-            o.name = input;
-          }
-
-          if ((f === 'umd' || f === 'amd') && (!o.amd || (!!o.amd && !o.amd.id))) {
-            o.amd = Object.assign({}, o.amd, {
-              id: o.name
-            });
-          }
-
-          const build = await bundle.generate(o);
-          const [output] = build.output;
-          const { code, map } = output;
-          const buffer = Buffer.from(code, 'utf8');
-
-          const oBase = path.dirname(path.join(_dir, input));
-          const oName = path.basename(o.file);
-          const oPath = path.resolve(oBase, oName);
-          const oFile = new Vinyl({
-            base: oBase,
-            path: oPath,
-            contents: buffer
-          });
-
-          if (map !== null) {
-            vinylSa(oFile, map);
-          }
-
-          _obj.push(oFile);
+          return { bundle, outputs, inputPath: rollupInput.input };
         })
       );
-    })
-  );
 
-  _obj.push(null);
+      for (const { bundle, outputs, inputPath } of bundles) {
+        for (const outputOpts of outputs) {
+          if ((outputOpts.format === 'umd' || outputOpts.format === 'iife') && !outputOpts.name) {
+            outputOpts.name = path.basename(inputPath, path.extname(inputPath));
+          }
+          if ((outputOpts.format === 'umd' || outputOpts.format === 'amd') && !outputOpts.amd?.id) {
+            outputOpts.amd = { ...(outputOpts.amd || {}), id: outputOpts.name };
+          }
 
-  return _obj;
+          const result = await bundle.generate(outputOpts);
+          for (const output of result.output) {
+            const { code, map } = output;
+
+            const outFile = new Vinyl({
+              cwd,
+              base: path.dirname(path.join(cwd, inputPath)),
+              path: path.resolve(cwd, outputOpts.file),
+              contents: Buffer.from(code)
+            });
+
+            if (map) applySourceMap(outFile, map);
+            stream.push(outFile);
+          }
+        }
+        await bundle.close();
+      }
+
+      stream.push(null);
+    } catch (err) {
+      stream.emit('error', err);
+    }
+  })();
+
+  return stream;
 };
 
 module.exports = {
