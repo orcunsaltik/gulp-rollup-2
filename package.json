@@ -1,10 +1,11 @@
 {
   "name": "gulp-rollup-2",
-  "version": "1.3.1",
+  "version": "2.0.0",
   "description": "Gulp plugin for Rollup JavaScript Module Bundler",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint -c .eslintrc.js index.js --fix -o eslint.log -f unix",
+    "lint": "eslint index.js",
+    "lint:fix": "eslint index.js --fix",
     "test": "npm run lint"
   },
   "repository": {
@@ -13,6 +14,7 @@
   },
   "keywords": [
     "gulp",
+    "gulpplugin",
     "rollup",
     "module",
     "modules",
@@ -23,14 +25,13 @@
     "cjs",
     "iife",
     "plugin",
-    "gulpplugin",
     "gulp-plugin",
     "javascript",
     "js",
     "es6"
   ],
   "engines": {
-    "node": ">= 10.22.1"
+    "node": ">= 18.0.0"
   },
   "author": "Orçun Saltık <saltikorcun@gmail.com>",
   "license": "MIT",
@@ -40,14 +41,18 @@
   "homepage": "https://github.com/orcunsaltik/gulp-rollup-2#readme",
   "dependencies": {
     "njfs": "^1.2.5",
-    "object-hash": "^2.1.1",
-    "rollup": "^2.41.4",
+    "object-hash": "^3.0.0",
+    "rollup": "^4.28.1",
     "through2": "^4.0.2",
-    "vinyl": "^2.2.1",
+    "vinyl": "^3.0.0",
     "vinyl-sourcemaps-apply": "^0.2.1"
   },
   "devDependencies": {
-    "eslint": "^7.22.0",
-    "eslint-plugin-node": "^11.1.0"
+    "eslint": "^8.57.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "prettier": "^3.2.5"
   }
 }

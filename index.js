@@ -1,323 +1,321 @@
-const path    = require('path');
-const vinyl   = require('vinyl');
+const path = require('path');
+const Vinyl = require('vinyl');
 const vinylSa = require('vinyl-sourcemaps-apply');
 const through = require('through2');
-const rollup  = require('rollup');
-const hash    = require('object-hash');
-const root    = require('njfs').root;
+const rollup = require('rollup');
+const hash = require('object-hash');
+const root = require('njfs').root;
 
 const PLUGIN_NAME = 'gulp-rollup-2';
 
-let cache = {};
+const cache = {};
 
 const modules = ['es', 'amd', 'cjs', 'iife', 'umd', 'system'];
 
-const isInMod = (format) => modules.indexOf(format) > -1;
+const isInMod = format => modules.indexOf(format) > -1;
 
 const isArray = arg => Object.prototype.toString.call(arg) === '[object Array]';
 
-const unique = (obj) => Array.prototype.filter.call(obj, (v, i) => obj.indexOf(v) === i);
+const unique = obj => Array.prototype.filter.call(obj, (v, i) => obj.indexOf(v) === i);
 
 const isEqual = (a, b) => {
+  const oka = Object.keys(a);
+  const okb = Object.keys(b);
+  const ola = oka.length;
+  const olb = okb.length;
 
-	const oka = Object.keys(a);
-	const okb = Object.keys(b);
-	const ola = oka.length;
-	const olb = okb.length;
+  if (ola !== olb) {
+    return false;
+  }
 
-	if (ola !== olb) {
-		return false;
-	}
+  let i = 0;
+  for (; i < ola; i += 1) {
+    const ka = oka[i];
 
-	let i = 0;
-	for (; i < ola; i += 1) {
+    if (b[ka] === undefined) {
+      return false;
+    }
 
-		const ka = oka[i];
+    const va = a[ka];
+    const vb = b[ka];
 
-		if (b[ka] === undefined) {
-			return false;
-		}
+    if (va == null || typeof va === 'string' || typeof va === 'number') {
+      if (va !== vb) {
+        return false;
+      }
+    } else if (typeof va === 'function') {
+      if (va.name !== vb.name) {
+        return false;
+      }
+    } else if (va.constructor !== vb.constructor) {
+      return false;
+    } else {
+      return isEqual(va, vb);
+    }
+  }
 
-		const va = a[ka];
-		const vb = b[ka];
-
-		if (va == null || typeof va === 'string' || typeof va === 'number') {
-			if (va !== vb) {
-				return false;
-			}
-		} else if (typeof va === 'function') {
-			if (va.name !== vb.name) {
-				return false;
-			}
-		} else if (va.constructor !== vb.constructor) {
-			return false;
-		} else {
-			return isEqual(va, vb);
-		}
-	}
-
-	return true;
+  return true;
 };
 
 const sanitize = (opts, out) => {
+  if (!opts) {
+    throw new Error(`${PLUGIN_NAME}: Missing rollup config options!`);
+  }
 
-	if (!opts) {
-		throw new Error(`${PLUGIN_NAME}:  Missing rollup config options!`);
-	}
+  if (typeof opts === 'string') {
+    opts = [
+      {
+        output: {
+          format: opts
+        }
+      }
+    ];
+  } else if (!isArray(opts)) {
+    opts = [opts];
+  }
 
-	if (typeof opts === 'string') {
-		opts = [{
-			output: {
-				format: opts
-			}
-		}];
-	} else if (!isArray(opts)) {
-		opts = [opts];
-	}
+  opts.filter(e => {
+    if (out && !e.input) {
+      throw new Error(`${PLUGIN_NAME}: Input option required!`);
+    } else if (!e.output) {
+      throw new Error(`${PLUGIN_NAME}: Output option required!`);
+    } else if (isArray(e.output)) {
+      if (e.output.filter(i => !i.file || !i.format || !isInMod(i.format)).length) {
+        throw new Error(`${PLUGIN_NAME}: Missing options file, format or unknown format type!`);
+      }
+    } else if (!e.output.file || !e.output.format || !isInMod(e.output.format)) {
+      throw new Error(`${PLUGIN_NAME}: Missing options file, format or unknown format type!`);
+    }
+    return true;
+  });
 
-	opts.filter(e => {
-		if (out && !e.input) {
-			throw new Error(`${PLUGIN_NAME}:  Input option required!`);
-		} else if (!e.output) {
-			throw new Error(`${PLUGIN_NAME}:  Output option required!`);
-		} else if (isArray(e.output)) {
-			if (e.output.filter((i) => !i.file || !i.format || !isInMod(i.format)).length) {
-				throw new Error(`${PLUGIN_NAME}:  Missing options file, format or unknown format type!`);
-			}
-		} else if (!e.output.file || !e.output.format || !isInMod(e.output.format)) {
-			throw new Error(`${PLUGIN_NAME}:  Missing options file, format or unknown format type!`);
-		}
-	});
+  const options = [];
 
-	const options = [];
+  opts.forEach((opt, i) => {
+    const io = Object.assign({}, opt);
+    const oo = io.output;
 
-	opts.forEach((opt, i) => {
+    delete io.output;
 
-		const io = Object.assign({}, opt);
-		const oo = io.output;
+    options[i] = {};
+    options[i].io = io;
+    options[i].oo = isArray(oo) ? oo : [oo];
+  });
 
-		delete io.output;
+  opts = options;
 
-		options[i] = {};
-		options[i]['io'] = io;
-		options[i]['oo'] = isArray(oo) ? oo : [oo];
-	});
+  opts.forEach((opt, i) => {
+    const currI = opt.io;
+    opts.forEach((e, j) => {
+      if (i !== j && isEqual(currI, e.io)) {
+        throw new Error(`${PLUGIN_NAME}: Repetitive input options!`);
+      }
+    });
+  });
 
-	opts = options;
+  const of = [];
 
-	opts.forEach((opt, i) => {
-		const currI = opt.io;
-		opts.forEach((e, j) => {
-			if (i !== j && isEqual(currI, e.io)) {
-				throw new Error(`${PLUGIN_NAME}:  Repetitive input options!`);
-			}
-		});
-	});
+  opts.forEach(opt => {
+    const oo = opt.oo;
+    oo.forEach((o, i) => {
+      const curr = o;
+      oo.forEach((e, j) => {
+        if (i !== j) {
+          if (isEqual(curr, e) || curr.file === e.file) {
+            throw new Error(`${PLUGIN_NAME}: Two or more output have same file option!`);
+          } else {
+            of.push(curr.file);
+          }
+        }
+      });
+    });
+  });
 
-	const of = [];
+  if (of.length !== unique(of).length) {
+    throw new Error(`${PLUGIN_NAME}: Two or more output have same file option!`);
+  }
 
-	opts.forEach((opt) => {
-		const oo = opt.oo;
-		oo.forEach((o, i) => {
-			const curr = o;
-			oo.forEach((e, j) => {
-				if (i !== j) {
-					if (isEqual(curr, e) || curr.file === e.file) {
-						throw new Error(`${PLUGIN_NAME}:  Two or more output have same file option!`);
-					} else {
-						of .push(curr.file);
-					}
-				}
-			});
-		});
-	});
-
-	if ( of .length !== unique( of ).length) {
-		throw new Error(`${PLUGIN_NAME}:  Two or more output have same file option!`);
-	}
-
-	return opts;
+  return opts;
 };
 
-const inside = (opts) => {
+const inside = opts => {
+  opts = sanitize(opts);
 
-	opts = sanitize(opts);
+  return through(
+    {
+      objectMode: true
+    },
+    async function(file, encoding, callback) {
+      if (file.isStream()) {
+        this.emit('Error', Error(`${PLUGIN_NAME}: Unsupported file type: Stream!`));
+        callback();
+      }
 
-	return through({
-			objectMode: true
-		},
-		async (file, encoding, callback) => {
+      const _map = !!file.sourceMap;
+      const _dir = file.cwd;
+      const _pat = file.path;
+      const _inp = path.relative(_dir, _pat);
 
-			if (file.isStream()) {
-				this.emit('Error', Error(`${PLUGIN_NAME}:  Unsupported file type: Stream!`));
-				callback();
-			}
+      const bundles = await Promise.all(
+        opts.map(async opt => {
+          const io = opt.io;
+          const oo = opt.oo;
 
-			const _map = !!file.sourceMap;
-			const _dir = file.cwd;
-			const _pat = file.path;
-			const _inp = path.relative(_dir, _pat);
+          const ch = hash(io);
+          cache[ch] = {};
 
-			const bundles = await Promise.all(opts.map(async opt => {
+          io.input = io.input ? path.relative(_dir, io.input) : _inp;
+          io.cache = io.cache ? cache[ch] : false;
 
-				const io = opt.io;
-				const oo = opt.oo;
+          const bundle = await rollup.rollup(io);
+          cache[ch] = bundle.cache;
 
-				const ch = hash(io);
-				cache[ch] = {};
+          return {
+            bundle,
+            oo,
+            input: io.input
+          };
+        })
+      );
 
-				io.input = io.input ? path.relative(_dir, io.input) : _inp;
-				io.cache = io.cache ? cache[ch] : false;
+      let start = 2;
 
-				const bundle = await rollup.rollup(io);
-				cache[ch] = bundle.cache;
+      await Promise.all(
+        bundles.map(async bundle => {
+          const oo = bundle.oo;
+          const input = bundle.input;
+          bundle = bundle.bundle;
 
-				return {
-					bundle,
-					oo,
-					input: io.input
-				};
-			}));
+          await Promise.all(
+            oo.map(async o => {
+              start--;
 
-			let start = 2;
+              const f = o.format;
+              const s = start > 0;
 
-			await Promise.all(bundles.map(async bundle => {
+              if ((f === 'umd' || f === 'iife') && !o.name) {
+                o.name = input;
+              }
 
-				const oo = bundle.oo;
-				const input = bundle.input;
-				bundle = bundle.bundle;
+              if ((f === 'umd' || f === 'amd') && (!o.amd || (!!o.amd && !o.amd.id))) {
+                o.amd = Object.assign({}, o.amd, {
+                  id: o.name
+                });
+              }
 
-				await Promise.all(oo.map(async o => {
+              const build = await bundle.generate(o);
+              const [output] = build.output;
+              const { code } = output;
+              const buffer = Buffer.from(code, encoding);
 
-					start--;
+              const oBase = path.dirname(path.join(_dir, input));
+              const oName = path.basename(o.file);
+              const oPath = path.resolve(oBase, oName);
+              const oFile = s ? file : new Vinyl();
+              let map = output.map;
 
-					const f = o.format;
-					const s = start > 0;
+              oFile.path = oPath;
+              oFile.contents = buffer;
+              oFile.base = oBase;
 
-					if ((f === 'umd' || f === 'iife') && !o.name) {
-						o.name = input;
-					}
+              if (map !== null) {
+                vinylSa(oFile, map);
+              } else if (_map && s) {
+                map = file.sourceMap;
+                map.file = input;
+                map.sources = map.sources.map(src => path.relative(_dir, path.join(oBase, src)));
+                vinylSa(oFile, map);
+              }
 
-					if ((f === 'umd' || f === 'amd') && !o.amd || !!o.amd && !o.amd.id) {
-						o.amd = Object.assign({}, o.amd, {
-							id: o.name
-						});
-					}
+              return s ? oFile : this.push(oFile);
+            })
+          );
+        })
+      );
 
-					const build = await bundle.generate(o);
-					const [output] = build.output;
-					const {
-						code
-					} = output;
-					const buffer = Buffer.from(code, encoding);
-
-					const oBase = path.dirname(path.join(_dir, input));
-					const oName = path.basename(o.file);
-					const oPath = path.resolve(oBase, oName);
-					let oFile = s ? file : new vinyl();
-					let map = output.map;
-
-					oFile.path = oPath;
-					oFile.contents = buffer;
-					oFile.base = oBase;
-
-					if (map !== null) {
-						vinylSa(oFile, map);
-					} else if (_map && s) {
-						map = file.sourceMap;
-						map.file = input;
-						map.sources = map.sources.map(src => path.relative(_dir, path.join(oBase, src)));
-						vinylSa(oFile, map);
-					}
-
-					return s ? oFile : this.push(oFile);
-				}));
-
-			}));
-
-			callback(null, file);
-		});
+      callback(null, file);
+    }
+  );
 };
 
-const outside = async (opts) => {
+const outside = async opts => {
+  opts = sanitize(opts, true);
 
-	opts = sanitize(opts, true);
+  const _dir = root();
+  const _obj = through.obj();
 
-	const _dir = root();
-	const _obj = through.obj();
+  const bundles = await Promise.all(
+    opts.map(async opt => {
+      const io = opt.io;
+      const oo = opt.oo;
 
-	const bundles = await Promise.all(opts.map(async (opt) => {
+      const ch = hash(io);
+      cache[ch] = {};
 
-		const io = opt.io;
-		const oo = opt.oo;
+      io.input = path.relative(_dir, io.input);
+      io.cache = io.cache ? cache[ch] : false;
 
-		const ch = hash(io);
-		cache[ch] = {};
+      const bundle = await rollup.rollup(io);
+      cache[ch] = bundle.cache;
 
-		io.input = path.relative(_dir, io.input);
-		io.cache = io.cache ? cache[ch] : false;
+      return {
+        bundle,
+        oo,
+        input: io.input
+      };
+    })
+  );
 
-		const bundle = await rollup.rollup(io);
-		cache[ch] = bundle.cache;
+  await Promise.all(
+    bundles.map(async bundle => {
+      const oo = bundle.oo;
+      const input = bundle.input;
+      bundle = bundle.bundle;
 
-		return {
-			bundle,
-			oo,
-			input: io.input
-		};
-	}));
+      await Promise.all(
+        oo.map(async o => {
+          const f = o.format;
 
-	await Promise.all(bundles.map(async bundle => {
+          if ((f === 'umd' || f === 'iife') && !o.name) {
+            o.name = input;
+          }
 
-		const oo = bundle.oo;
-		const input = bundle.input;
-		bundle = bundle.bundle;
+          if ((f === 'umd' || f === 'amd') && (!o.amd || (!!o.amd && !o.amd.id))) {
+            o.amd = Object.assign({}, o.amd, {
+              id: o.name
+            });
+          }
 
-		await Promise.all(oo.map(async o => {
+          const build = await bundle.generate(o);
+          const [output] = build.output;
+          const { code, map } = output;
+          const buffer = Buffer.from(code, 'utf8');
 
-			const f = o.format;
+          const oBase = path.dirname(path.join(_dir, input));
+          const oName = path.basename(o.file);
+          const oPath = path.resolve(oBase, oName);
+          const oFile = new Vinyl({
+            base: oBase,
+            path: oPath,
+            contents: buffer
+          });
 
-			if ((f === 'umd' || f === 'iife') && !o.name) {
-				o.name = input;
-			}
+          if (map !== null) {
+            vinylSa(oFile, map);
+          }
 
-			if ((f === 'umd' || f === 'amd') && !o.amd || !!o.amd && !o.amd.id) {
-				o.amd = Object.assign({}, o.amd, {
-					id: o.name
-				});
-			}
+          _obj.push(oFile);
+        })
+      );
+    })
+  );
 
-			const build = await bundle.generate(o);
-			const [output] = build.output;
-			const {
-				code,
-				map
-			} = output;
-			const buffer = Buffer.from(code, "utf8");
+  _obj.push(null);
 
-			const oBase = path.dirname(path.join(_dir, input));
-			const oName = path.basename(o.file);
-			const oPath = path.resolve(oBase, oName);
-			const oFile = new vinyl({
-				base: oBase,
-				path: oPath,
-				contents: buffer
-			});
-
-			if (map !== null) {
-				vinylSa(oFile, map);
-			}
-
-			_obj.push(oFile);
-		}));
-	}));
-
-	_obj.push(null);
-
-	return _obj;
+  return _obj;
 };
 
 module.exports = {
-	rollup: inside,
-	src: outside
+  rollup: inside,
+  src: outside
 };
