@@ -6,7 +6,7 @@
 [![node version](https://img.shields.io/node/v/gulp-rollup-2.svg)](https://www.npmjs.com/package/gulp-rollup-2)
 [![license](https://img.shields.io/npm/l/gulp-rollup-2.svg)](https://github.com/orcunsaltik/gulp-rollup-2/blob/master/LICENSE)
 
-> Gulp plugin for Rollup JavaScript Module Bundler
+> Modern Gulp plugin for Rollup 4.x - Bundle JavaScript modules with tree-shaking, multiple output formats (UMD, ESM, CJS, IIFE), and full Rollup API support. Actively maintained.
 
 A powerful Gulp plugin for Rollup that allows you to use Rollup's module bundler before or after any gulp plugins with full Rollup API support.
 
@@ -20,6 +20,7 @@ A powerful Gulp plugin for Rollup that allows you to use Rollup's module bundler
 - ✅ Modern Node.js support (18+)
 
 ## Installation
+
 ```bash
 npm install --save-dev gulp-rollup-2
 ```
@@ -29,31 +30,34 @@ npm install --save-dev gulp-rollup-2
 ### Method A: Inside gulp.pipe()
 
 Use between `gulp.src()` and `gulp.dest()`:
+
 ```javascript
 const { src, dest } = require('gulp');
 const gru2 = require('gulp-rollup-2');
 
 function bundle() {
   return src('./src/**/*.js')
-    .pipe(gru2.rollup({
-      input: 'src/app.js',
-      external: ['window'],
-      plugins: [plugin1(), plugin2()],
-      cache: true,
-      output: [
-        {
-          file: 'example.js',
-          name: 'example',
-          format: 'umd',
-          globals: { window: 'window' }
-        },
-        {
-          file: 'example.esm.bundle.js',
-          format: 'es',
-          globals: { window: 'window' }
-        }
-      ]
-    }))
+    .pipe(
+      gru2.rollup({
+        input: 'src/app.js',
+        external: ['window'],
+        plugins: [plugin1(), plugin2()],
+        cache: true,
+        output: [
+          {
+            file: 'example.js',
+            name: 'example',
+            format: 'umd',
+            globals: { window: 'window' },
+          },
+          {
+            file: 'example.esm.bundle.js',
+            format: 'es',
+            globals: { window: 'window' },
+          },
+        ],
+      })
+    )
     .pipe(dest('./dist'));
 }
 
@@ -63,21 +67,24 @@ exports.bundle = bundle;
 ### Method B: Standalone with gru2.src()
 
 When gulp-rollup-2 comes first in the pipeline:
+
 ```javascript
 const { dest } = require('gulp');
 const gru2 = require('gulp-rollup-2');
 const sourcemaps = require('gulp-sourcemaps');
 
 async function bundle() {
-  return (await gru2.src({
-    input: 'src/app.js',
-    plugins: [plugin1()],
-    output: {
-      file: 'bundle.js',
-      format: 'umd',
-      name: 'MyBundle'
-    }
-  }))
+  return (
+    await gru2.src({
+      input: 'src/app.js',
+      plugins: [plugin1()],
+      output: {
+        file: 'bundle.js',
+        format: 'umd',
+        name: 'MyBundle',
+      },
+    })
+  )
     .pipe(sourcemaps.write('.'))
     .pipe(dest('dist'));
 }
@@ -90,6 +97,7 @@ exports.bundle = bundle;
 ### gru2.rollup(options)
 
 Use inside a gulp pipeline. The `options` parameter accepts:
+
 - A single Rollup configuration object
 - An array of Rollup configuration objects
 - A format string (e.g., `'umd'`, `'es'`)
@@ -117,29 +125,31 @@ See [Rollup documentation](https://rollupjs.org/configuration-options/) for comp
 ## Multiple Outputs
 
 You can generate multiple bundles from a single source:
+
 ```javascript
 gru2.rollup({
   input: 'src/main.js',
   output: [
     { file: 'dist/bundle.umd.js', format: 'umd', name: 'MyLib' },
     { file: 'dist/bundle.esm.js', format: 'es' },
-    { file: 'dist/bundle.cjs.js', format: 'cjs' }
-  ]
-})
+    { file: 'dist/bundle.cjs.js', format: 'cjs' },
+  ],
+});
 ```
 
 ## Source Maps
 
 Source maps from previous gulp plugins (like gulp-sourcemaps) will be preserved unless you enable Rollup's sourcemap option:
+
 ```javascript
 gru2.rollup({
   input: 'src/app.js',
   output: {
     file: 'bundle.js',
     format: 'umd',
-    sourcemap: true  // This will override any existing source maps
-  }
-})
+    sourcemap: true, // This will override any existing source maps
+  },
+});
 ```
 
 ## Requirements
@@ -150,7 +160,19 @@ gru2.rollup({
 
 ## Changelog
 
-### v2.0.0 (2025)
+### v2.0.2 (2025)
+
+- 🚀 Updated config files to latest standards
+- 🚀 Improved development workflow
+- 🚀 Better code quality tools
+- 🚀 Updated SEO-friendly package description
+
+### v2.0.1 (2024)
+
+- Dependency updates
+
+### v2.0.0 (2024)
+
 - 🚀 Updated to Rollup 4.x
 - 🚀 Node.js 18+ support
 - 🚀 Modernized dependencies
@@ -158,6 +180,7 @@ gru2.rollup({
 - 🚀 Improved code quality with Prettier & ESLint
 
 ### v1.3.1 (2021)
+
 - Previous stable release
 
 ## Contributing
