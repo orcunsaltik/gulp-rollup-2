@@ -1,48 +1,41 @@
 /**
- * gulp-rollup-2 — Modern, correct, and robust
- * Supports:
- * - Multiple inputs → multiple outputs
- * - Full Vinyl + sourcemap support
- * - Proper cache handling
- * - Gulp stream compliance
- * - Rollup 2+ / 3+ / 4+ compatible
+ * gulp-rollup-2 — Production-grade, Rollup 4+ compatible
+ * Cache-safe + sourcemap path fix integrated
  */
-
 const path = require('path');
 const Vinyl = require('vinyl');
 const applySourceMap = require('vinyl-sourcemaps-apply');
 const through2 = require('through2');
 const rollup = require('rollup');
 const hash = require('object-hash');
-const { root } = require('njfs');
 
 const PLUGIN_NAME = 'gulp-rollup-2';
-const CACHE = new Map(); // input hash → rollup cache
+const CACHE = new Map();
 
-// --- Helpers ---
+// --- helpers ---
 const isArray = Array.isArray;
-const uniq = arr => [...new Set(arr)];
+const uniq = (arr) => [...new Set(arr)];
 
 const deepEqual = (a, b) => {
   if (a === b) return true;
-  if (a == null || b == null) return false;
-  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  if (a == null || b == null) return a === b;
+  if (typeof a !== 'object' || typeof b !== 'object') return a === b;
 
   const keysA = Object.keys(a);
-  const keysB = Object.keys(b);
-  if (keysA.length !== keysB.length) return false;
+  if (keysA.length !== Object.keys(b).length) return false;
 
   for (const key of keysA) {
-    if (!Object.hasOwn(b, key)) return false;
-    if (!deepEqual(a[key], b[key])) return false;
+    if (!Object.hasOwn(b, key) || !deepEqual(a[key], b[key])) return false;
   }
   return true;
 };
 
-const validateFormat = fmt => ['es', 'amd', 'cjs', 'iife', 'umd', 'system'].includes(fmt);
+const validFormats = ['es', 'amd', 'cjs', 'iife', 'umd', 'system'];
+const isValidFormat = (fmt) => validFormats.includes(fmt);
 
 const sanitizeConfig = (configs, requireInput = false) => {
   if (!configs) throw new Error(`${PLUGIN_NAME}: Missing Rollup config`);
+
   if (typeof configs === 'string') {
     configs = [{ output: { format: configs } }];
   }
@@ -52,18 +45,16 @@ const sanitizeConfig = (configs, requireInput = false) => {
 
   for (const cfg of configs) {
     if (requireInput && !cfg.input) {
-      throw new Error(`${PLUGIN_NAME}: 'input' is required`);
+      throw new Error(`${PLUGIN_NAME}: 'input' option is required in src() mode`);
     }
-    if (!cfg.output) {
-      throw new Error(`${PLUGIN_NAME}: 'output' is required`);
-    }
+    if (!cfg.output) throw new Error(`${PLUGIN_NAME}: 'output' is required`);
 
     const inputOpts = { ...cfg };
     const outputs = isArray(cfg.output) ? cfg.output : [cfg.output];
     delete inputOpts.output;
 
     for (const out of outputs) {
-      if (!out.file || !out.format || !validateFormat(out.format)) {
+      if (!out.file || !out.format || !isValidFormat(out.format)) {
         throw new Error(`${PLUGIN_NAME}: Output must have 'file' and valid 'format'`);
       }
     }
@@ -71,26 +62,35 @@ const sanitizeConfig = (configs, requireInput = false) => {
     result.push({ input: inputOpts, outputs });
   }
 
-  // Dedupe inputs
+  // dedupe inputs
   for (let i = 0; i < result.length; i++) {
     for (let j = i + 1; j < result.length; j++) {
       if (deepEqual(result[i].input, result[j].input)) {
-        throw new Error(`${PLUGIN_NAME}: Duplicate input options`);
+        throw new Error(`${PLUGIN_NAME}: Duplicate input configurations`);
       }
     }
   }
 
-  // Dedupe output files
-  const files = result.flatMap(r => r.outputs.map(o => o.file));
+  // dedupe output files
+  const files = result.flatMap((r) => r.outputs.map((o) => o.file));
   if (files.length !== uniq(files).length) {
-    throw new Error(`${PLUGIN_NAME}: Multiple outputs write to the same file`);
+    throw new Error(`${PLUGIN_NAME}: Multiple outputs target the same file`);
   }
 
   return result;
 };
 
-// --- Inside Stream (Transform) ---
-const inside = rollupConfigs => {
+// --- cache key (plugins intentionally excluded) ---
+const createCacheKey = (input, outputs) =>
+  hash({
+    input: input.input,
+    external: input.external,
+    treeshake: input.treeshake,
+    outputs: outputs.map((o) => o.file),
+  });
+
+// --- inside (gulp src pipe) ---
+const inside = (rollupConfigs) => {
   const configs = sanitizeConfig(rollupConfigs);
 
   return through2.obj(async function (file, enc, cb) {
@@ -106,47 +106,52 @@ const inside = rollupConfigs => {
         configs.map(async ({ input, outputs }) => {
           const rollupInput = {
             ...input,
-            input: input.input ? path.relative(cwd, input.input) : inputPath
+            input: input.input ? path.resolve(cwd, input.input) : file.path,
           };
 
-          const cacheKey = hash(rollupInput);
-          rollupInput.cache = CACHE.get(cacheKey) || false;
+          const cacheKey = createCacheKey(rollupInput, outputs);
+          rollupInput.cache = CACHE.get(cacheKey) ?? false;
 
           const bundle = await rollup.rollup(rollupInput);
           CACHE.set(cacheKey, bundle.cache);
 
-          return { bundle, outputs, inputPath: rollupInput.input };
+          return { bundle, outputs };
         })
       );
 
-      for (const { bundle, outputs, inputPath } of bundles) {
+      for (const { bundle, outputs } of bundles) {
         for (const outputOpts of outputs) {
-          // Auto-fill name for UMD/IIFE
-          if ((outputOpts.format === 'umd' || outputOpts.format === 'iife') && !outputOpts.name) {
+          if (['umd', 'iife'].includes(outputOpts.format) && !outputOpts.name) {
             outputOpts.name = path.basename(inputPath, path.extname(inputPath));
           }
-          if ((outputOpts.format === 'umd' || outputOpts.format === 'amd') && !outputOpts.amd?.id) {
+          if (
+            ['umd', 'amd'].includes(outputOpts.format) &&
+            (!outputOpts.amd || !outputOpts.amd.id)
+          ) {
             outputOpts.amd = { ...(outputOpts.amd || {}), id: outputOpts.name };
           }
 
-          const result = await bundle.generate(outputOpts);
-          for (const output of result.output) {
-            const { code, map } = output;
+          const { output } = await bundle.generate(outputOpts);
+
+          for (const out of output) {
+            if (out.type === 'asset') continue;
+
+            const code = out.code ?? out.source;
+            if (!code) continue;
 
             const outFile = new Vinyl({
               cwd,
-              base: path.dirname(path.join(cwd, inputPath)),
+              base: cwd,
               path: path.resolve(cwd, outputOpts.file),
-              contents: Buffer.from(code)
+              contents: Buffer.from(code),
             });
 
-            if (map) {
-              applySourceMap(outFile, map);
+            if (out.map) {
+              applySourceMap(outFile, out.map);
             } else if (file.sourceMap) {
-              // Fallback to input sourcemap
-              const sm = { ...file.sourceMap };
+              const sm = JSON.parse(JSON.stringify(file.sourceMap));
               sm.file = path.basename(outputOpts.file);
-              sm.sources = sm.sources.map(s =>
+              sm.sources = sm.sources.map((s) =>
                 path.relative(outFile.base, path.resolve(file.base, s))
               );
               applySourceMap(outFile, sm);
@@ -165,11 +170,11 @@ const inside = rollupConfigs => {
   });
 };
 
-// --- Outside Stream (Readable) ---
-const outside = async rollupConfigs => {
+// --- outside (no njfs.root, caller controls cwd) ---
+const outside = async (rollupConfigs) => {
   const configs = sanitizeConfig(rollupConfigs, true);
-  const cwd = root();
   const stream = through2.obj();
+  const cwd = process.cwd();
 
   (async () => {
     try {
@@ -177,40 +182,47 @@ const outside = async rollupConfigs => {
         configs.map(async ({ input, outputs }) => {
           const rollupInput = {
             ...input,
-            input: path.relative(cwd, input.input)
+            input: path.resolve(cwd, input.input),
           };
 
-          const cacheKey = hash(rollupInput);
-          rollupInput.cache = CACHE.get(cacheKey) || false;
+          const cacheKey = createCacheKey(rollupInput, outputs);
+          rollupInput.cache = CACHE.get(cacheKey) ?? false;
 
           const bundle = await rollup.rollup(rollupInput);
           CACHE.set(cacheKey, bundle.cache);
 
-          return { bundle, outputs, inputPath: rollupInput.input };
+          return { bundle, outputs };
         })
       );
 
-      for (const { bundle, outputs, inputPath } of bundles) {
+      for (const { bundle, outputs } of bundles) {
         for (const outputOpts of outputs) {
-          if ((outputOpts.format === 'umd' || outputOpts.format === 'iife') && !outputOpts.name) {
-            outputOpts.name = path.basename(inputPath, path.extname(inputPath));
+          if (['umd', 'iife'].includes(outputOpts.format) && !outputOpts.name) {
+            outputOpts.name = path.basename(outputOpts.file, path.extname(outputOpts.file));
           }
-          if ((outputOpts.format === 'umd' || outputOpts.format === 'amd') && !outputOpts.amd?.id) {
+          if (
+            ['umd', 'amd'].includes(outputOpts.format) &&
+            (!outputOpts.amd || !outputOpts.amd.id)
+          ) {
             outputOpts.amd = { ...(outputOpts.amd || {}), id: outputOpts.name };
           }
 
-          const result = await bundle.generate(outputOpts);
-          for (const output of result.output) {
-            const { code, map } = output;
+          const { output } = await bundle.generate(outputOpts);
+
+          for (const out of output) {
+            if (out.type === 'asset') continue;
+
+            const code = out.code ?? out.source;
+            if (!code) continue;
 
             const outFile = new Vinyl({
               cwd,
-              base: path.dirname(path.join(cwd, inputPath)),
+              base: path.dirname(path.resolve(cwd, outputOpts.file)),
               path: path.resolve(cwd, outputOpts.file),
-              contents: Buffer.from(code)
+              contents: Buffer.from(code),
             });
 
-            if (map) applySourceMap(outFile, map);
+            if (out.map) applySourceMap(outFile, out.map);
             stream.push(outFile);
           }
         }
@@ -228,5 +240,5 @@ const outside = async rollupConfigs => {
 
 module.exports = {
   rollup: inside,
-  src: outside
+  src: outside,
 };
