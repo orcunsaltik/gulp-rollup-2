@@ -360,4 +360,125 @@ Standalone bundle factory (async).
 - Added a real unit/integration test suite (`node --test`) covering
   validation errors, duplicate detection, the pipe-mode filename fallback,
   and multi-file streams. `npm test` now runs lint **and** these tests, and a
-  `prepublishOnly` hook prevents `npm publish` from runn
+  `prepublishOnly` hook prevents `npm publish` from running if either fails.
+
+### v2.1.0 (2025)
+
+#### ✨ New Features
+
+- **Production-grade caching:** Improved cache system using `object-hash` for reliable cache key generation
+- **Duplicate detection:** Automatic detection and prevention of duplicate input configurations
+- **Duplicate output detection:** Prevents multiple outputs targeting the same file
+- **Memory leak prevention:** Automatic `bundle.close()` after each build
+
+#### 🐛 Bug Fixes
+
+- **Fixed sourcemap paths:** Corrected sourcemap path resolution for accurate debugging
+- **Better error messages:** More descriptive errors for configuration issues
+- **Deep equality checks:** Proper configuration comparison using deep equality
+
+#### 🔧 Internal Improvements
+
+- Modern async/await patterns throughout
+- Replaced custom equality with robust deep equality checking
+- Better memory management with Map-based caching
+- Added `object-hash` dependency for stable cache keys
+
+### v2.0.2 (2025)
+
+- Updated config files to latest standards
+- Improved development workflow
+- Better code quality tools
+- Updated SEO-friendly package description
+
+### v2.0.0 (2025)
+
+- Updated to Rollup 4.x
+- Node.js 18+ support
+- Modernized dependencies
+- Added GitHub Actions CI
+- Improved code quality with Prettier & ESLint
+
+## Migration Guide
+
+### From v2.0.x to v2.1.0
+
+**No breaking changes!** v2.1.0 is fully backward compatible.
+
+**What's New:**
+
+- Automatic duplicate detection (will catch configuration errors early)
+- Improved caching reliability
+- Better memory management
+- Fixed sourcemap paths
+
+**Action Required:**
+
+- ✅ None! Just upgrade: `npm install gulp-rollup-2@latest`
+- ⚠️ If you have duplicate configurations, they will now throw errors (this is intentional!)
+
+## Troubleshooting
+
+### Cache Issues
+
+If you experience unexpected caching behavior:
+
+```js
+rollup2.rollup({
+  input: 'src/app.js',
+  cache: false,  // Disable cache temporarily
+  plugins: [...],
+  output: { file: 'bundle.js', format: 'umd' }
+})
+```
+
+### Duplicate Configuration Errors
+
+Check that:
+
+1. Input configurations are unique (different `input`, `external`, or `treeshake` options)
+2. Output files have unique paths
+
+### Memory Issues
+
+v2.1.0 automatically calls `bundle.close()` to prevent memory leaks. If you still experience issues, please [open an issue](https://github.com/orcunsaltik/gulp-rollup-2/issues).
+
+### Multiple Files Overwriting Each Other
+
+If files bundled from a `gulp.src()` stream with several matches are
+overwriting one another under the same name, remove `output.file` from your
+config — see [Multiple Source Files (Pipe Mode)](#multiple-source-files-pipe-mode).
+
+## Testing
+
+```bash
+npm test        # lint + full test suite
+npm run test:unit  # test suite only
+```
+
+`npm publish` runs `npm test` automatically via `prepublishOnly` and will
+refuse to publish if lint or any test fails.
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
+coding conventions, and the pull request process.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
+
+## License
+
+MIT © [Orçun Saltık](https://github.com/orcunsaltik)
+
+## Author
+
+**Orçun Saltık**
+
+- GitHub: [@orcunsaltik](https://github.com/orcunsaltik)
+- Email: saltikorcun@gmail.com
+
+---
+
+**Made with care for the Gulp + Rollup community** 🚀
