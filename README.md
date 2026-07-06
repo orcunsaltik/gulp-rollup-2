@@ -38,6 +38,9 @@ npm install --save-dev gulp-rollup-2 rollup
 
 The most common usage scenario:
 
+> **Tip:** `output.file` is optional inside `rollup2.rollup()` (pipe mode). If you
+> omit it, the bundle keeps the original file's name — see [Multiple source files](#multiple-source-files-pipe-mode) below.
+
 ```js
 const gulp = require('gulp');
 const rollup2 = require('gulp-rollup-2');
@@ -78,6 +81,42 @@ Generate multiple formats from a single input:
 ```
 
 **Important:** Output files must be unique. Duplicate output files will throw an error.
+
+## Multiple Source Files (Pipe Mode)
+
+`rollup2.rollup()` is meant to run inside a `gulp.src()` stream, which can carry
+more than one file (e.g. `gulp.src('src/js/*.js')`). If `output.file` is set,
+**every** file in the stream is bundled to that same name, so with more than
+one input file, each one overwrites the previous output.
+
+To bundle each source file to its own output, omit `output.file`. Each file
+then keeps its own name automatically:
+
+```js
+gulp
+  .src('src/js/*.js')
+  .pipe(
+    rollup2.rollup({
+      plugins: [resolve(), commonjs()],
+      output: {
+        format: 'iife',
+        // no 'file' -> each output keeps its source file's name
+      },
+    })
+  )
+  .pipe(gulp.dest('dist'));
+```
+
+`src/js/a.js` and `src/js/b.js` produce `dist/a.js` and `dist/b.js` instead of
+both being written to the same hardcoded filename.
+
+**Note:** at most one output entry per config may omit `file`. If two or more
+outputs in the same `output: [...]` array both omit `file`, they would collide
+on the same source filename, so this throws an error asking you to name them
+explicitly.
+
+**Note:** in `rollup2.src()` (standalone, non-pipe mode), there is no source
+Vinyl file to fall back to, so `output.file` stays required there.
 
 ## Cache Behavior
 
@@ -205,7 +244,11 @@ const { dest } = require('gulp');
 
 ### Duplicate Input Configurations
 
-Prevents accidental configuration conflicts:
+Prevents accidental configuration conflicts. Comparison is based on `input`,
+`external`, `treeshake` and any other plain input options — **not** `plugins`.
+Plugin factories (e.g. `resolve()`) return a fresh instance on every call, so
+comparing them directly would never flag a real duplicate; excluding them
+keeps the check meaningful:
 
 ```js
 // ❌ This will throw an error:
@@ -217,7 +260,7 @@ rollup2.rollup([
   },
   {
     input: 'src/app.js',
-    plugins: [resolve()], // Same config!
+    plugins: [resolve()], // Different instance, but plugins aren't compared
     output: { file: 'bundle2.js', format: 'umd' },
   },
 ]);
@@ -294,108 +337,27 @@ Standalone bundle factory (async).
 
 ## Changelog
 
-### v2.1.0 (2025)
-
-#### ✨ New Features
-
-- **Production-grade caching:** Improved cache system using `object-hash` for reliable cache key generation
-- **Duplicate detection:** Automatic detection and prevention of duplicate input configurations
-- **Duplicate output detection:** Prevents multiple outputs targeting the same file
-- **Memory leak prevention:** Automatic `bundle.close()` after each build
+### v2.2.0 (2026)
 
 #### 🐛 Bug Fixes
 
-- **Fixed sourcemap paths:** Corrected sourcemap path resolution for accurate debugging
-- **Better error messages:** More descriptive errors for configuration issues
-- **Deep equality checks:** Proper configuration comparison using deep equality
+- **Fixed #2:** `output.file` is now optional in pipe mode (`rollup2.rollup()`).
+  Streams with multiple source files no longer overwrite each other under one
+  hardcoded filename — each output now falls back to its source file's name.
+  Thanks to [@OPMikeBit](https://github.com/OPMikeBit) for the report and the
+  proposed fix.
+- **Fixed duplicate-input detection:** the check now excludes `plugins` from
+  the comparison. Previously, freshly-instantiated plugins (the common
+  `plugins: [resolve()]` pattern) made two functionally identical configs
+  compare as different, so genuine duplicates were never caught.
+- **Fixed cross-file state leak:** in a multi-file pipe stream, the
+  auto-derived UMD/IIFE `name` and the new filename fallback are now computed
+  per file instead of being cached from the first file and reused for every
+  subsequent one.
 
-#### 🔧 Internal Improvements
+#### ✅ Testing
 
-- Modern async/await patterns throughout
-- Replaced custom equality with robust deep equality checking
-- Better memory management with Map-based caching
-- Added `object-hash` dependency for stable cache keys
-
-### v2.0.2 (2025)
-
-- Updated config files to latest standards
-- Improved development workflow
-- Better code quality tools
-- Updated SEO-friendly package description
-
-### v2.0.0 (2025)
-
-- Updated to Rollup 4.x
-- Node.js 18+ support
-- Modernized dependencies
-- Added GitHub Actions CI
-- Improved code quality with Prettier & ESLint
-
-## Migration Guide
-
-### From v2.0.x to v2.1.0
-
-**No breaking changes!** v2.1.0 is fully backward compatible.
-
-**What's New:**
-
-- Automatic duplicate detection (will catch configuration errors early)
-- Improved caching reliability
-- Better memory management
-- Fixed sourcemap paths
-
-**Action Required:**
-
-- ✅ None! Just upgrade: `npm install gulp-rollup-2@latest`
-- ⚠️ If you have duplicate configurations, they will now throw errors (this is intentional!)
-
-## Troubleshooting
-
-### Cache Issues
-
-If you experience unexpected caching behavior:
-
-```js
-rollup2.rollup({
-  input: 'src/app.js',
-  cache: false,  // Disable cache temporarily
-  plugins: [...],
-  output: { file: 'bundle.js', format: 'umd' }
-})
-```
-
-### Duplicate Configuration Errors
-
-Check that:
-
-1. Input configurations are unique (different `input`, `external`, or `treeshake` options)
-2. Output files have unique paths
-
-### Memory Issues
-
-v2.1.0 automatically calls `bundle.close()` to prevent memory leaks. If you still experience issues, please [open an issue](https://github.com/orcunsaltik/gulp-rollup-2/issues).
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-MIT © [Orçun Saltık](https://github.com/orcunsaltik)
-
-## Author
-
-**Orçun Saltık**
-
-- GitHub: [@orcunsaltik](https://github.com/orcunsaltik)
-- Email: saltikorcun@gmail.com
-
----
-
-**Made with care for the Gulp + Rollup community** 🚀
+- Added a real unit/integration test suite (`node --test`) covering
+  validation errors, duplicate detection, the pipe-mode filename fallback,
+  and multi-file streams. `npm test` now runs lint **and** these tests, and a
+  `prepublishOnly` hook prevents `npm publish` from runn

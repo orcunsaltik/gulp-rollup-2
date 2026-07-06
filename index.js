@@ -54,27 +54,44 @@ const sanitizeConfig = (configs, requireInput = false) => {
     delete inputOpts.output;
 
     for (const out of outputs) {
-      if (!out.file || !out.format || !isValidFormat(out.format)) {
-        throw new Error(`${PLUGIN_NAME}: Output must have 'file' and valid 'format'`);
+      if (!out.format || !isValidFormat(out.format)) {
+        throw new Error(`${PLUGIN_NAME}: Output must have valid 'format'`);
+      }
+      if (requireInput && !out.file) {
+        throw new Error(`${PLUGIN_NAME}: Output must have 'file' in src() mode`);
       }
     }
 
     result.push({ input: inputOpts, outputs });
   }
 
-  // dedupe inputs
+  // dedupe inputs (plugins are intentionally excluded: factories like
+  // resolve() create a brand new instance on every call, so two functionally
+  // identical configs would never be reference/shape-equal on their plugins,
+  // and this check would never fire for the realistic case it's meant to catch)
   for (let i = 0; i < result.length; i++) {
+    const { plugins: _pluginsA, ...comparableA } = result[i].input;
     for (let j = i + 1; j < result.length; j++) {
-      if (deepEqual(result[i].input, result[j].input)) {
+      const { plugins: _pluginsB, ...comparableB } = result[j].input;
+      if (deepEqual(comparableA, comparableB)) {
         throw new Error(`${PLUGIN_NAME}: Duplicate input configurations`);
       }
     }
   }
 
-  // dedupe output files
-  const files = result.flatMap((r) => r.outputs.map((o) => o.file));
-  if (files.length !== uniq(files).length) {
+  // dedupe explicit output files. Outputs without a 'file' fall back to the
+  // source file's basename in pipe mode (see rollup2.rollup()), so only the
+  // explicitly-set ones can be compared here.
+  const allFiles = result.flatMap((r) => r.outputs.map((o) => o.file));
+  const explicitFiles = allFiles.filter(Boolean);
+  if (explicitFiles.length !== uniq(explicitFiles).length) {
     throw new Error(`${PLUGIN_NAME}: Multiple outputs target the same file`);
+  }
+  const implicitCount = allFiles.length - explicitFiles.length;
+  if (implicitCount > 1) {
+    throw new Error(
+      `${PLUGIN_NAME}: Multiple outputs are missing 'file'; they would all overwrite the same filename. Specify 'file' explicitly for each.`
+    );
   }
 
   return result;
@@ -120,7 +137,14 @@ const inside = (rollupConfigs) => {
       );
 
       for (const { bundle, outputs } of bundles) {
-        for (const outputOpts of outputs) {
+        for (const baseOutputOpts of outputs) {
+          // Clone per file: `outputs` comes from sanitizeConfig() and is
+          // created once for the whole stream, then reused for every file
+          // that passes through. Mutating the shared object directly would
+          // leak the first file's derived name/file into every subsequent
+          // file in a multi-file stream.
+          const outputOpts = { ...baseOutputOpts };
+
           if (['umd', 'iife'].includes(outputOpts.format) && !outputOpts.name) {
             outputOpts.name = path.basename(inputPath, path.extname(inputPath));
           }
@@ -129,6 +153,11 @@ const inside = (rollupConfigs) => {
             (!outputOpts.amd || !outputOpts.amd.id)
           ) {
             outputOpts.amd = { ...(outputOpts.amd || {}), id: outputOpts.name };
+          }
+          if (!outputOpts.file) {
+            // No explicit output file: keep the original filename instead of
+            // colliding all inputs onto one hardcoded name (see issue #2).
+            outputOpts.file = file.basename;
           }
 
           const { output } = await bundle.generate(outputOpts);
@@ -196,7 +225,9 @@ const outside = async (rollupConfigs) => {
       );
 
       for (const { bundle, outputs } of bundles) {
-        for (const outputOpts of outputs) {
+        for (const baseOutputOpts of outputs) {
+          const outputOpts = { ...baseOutputOpts };
+
           if (['umd', 'iife'].includes(outputOpts.format) && !outputOpts.name) {
             outputOpts.name = path.basename(outputOpts.file, path.extname(outputOpts.file));
           }
