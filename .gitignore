@@ -36,3 +36,6 @@ temp/
 # Environment
 .env
 .env.local
+
+# Local-only AI agent instructions (not published to GitHub)
+CLAUDE.md
